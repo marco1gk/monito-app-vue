@@ -1,8 +1,8 @@
 <script setup>
 import { ref } from "vue";
-import { useDevicesStore } from "@/stores/devices";
+import { useDevicesStore } from "../stores/devices";
 const store = useDevicesStore();
-const id = ref("lab-linux"); const ip = ref("192.168.1.10");
+const id = ref("nombre"); const ip = ref("Inserter IP o host");
 function add(){ store.addDevice({ id: id.value, ip: ip.value }); id.value=""; ip.value=""; }
 </script>
 
