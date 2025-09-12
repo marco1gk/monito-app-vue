@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useDevicesStore } from "../stores/devices";
 
 const store = useDevicesStore();
@@ -35,16 +35,25 @@ async function refresh() {
     loading.value = false;
   }
 }
+watch(
+  () => store.selected,
+  (newDevice, oldDevice) => {
+    if (newDevice) {
+      refresh(); 
+    } else {
+      cpu.value = null; 
+    }
+  },
+  { immediate: false } 
+);
 </script>
 
 <template>
   <div>
     <h2>Home</h2>
     <p>Dispositivo: <strong>{{ label }}</strong></p>
-    <button @click="refresh" :disabled="loading">
-      {{ loading ? "Cargando..." : "Fetch CPU" }}
-    </button>
 
+    <div v-if="loading" style="margin-top:8px;">Cargando datos...</div>
     <div v-if="error" style="color:red; margin-top:8px;">{{ error }}</div>
     <div v-if="cpu" class="cpu-container">
       <div class="fetch-card">
@@ -52,7 +61,7 @@ async function refresh() {
         <div><strong>OID:</strong> {{ cpu.oid }}</div>
         <div>
           <strong>Value:</strong>
-          <span title="{{ cpu.value }}">
+          <span :title="cpu.value">
             {{ cpu.value.length > 80 ? cpu.value.slice(0, 80) + "..." : cpu.value }}
           </span>
         </div>
