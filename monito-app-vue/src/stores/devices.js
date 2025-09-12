@@ -14,7 +14,7 @@ export const useDevicesStore = defineStore("devices", {
     addDevice(device) {
       this.devices.push(device);
       save(this.devices);
-      if (!this.selectedId) this.selectedId = d.id;
+      if (!this.selectedId) this.selectedId = device.id;
     },
     removeDevice(id) {
       this.devices = this.devices.filter((d) => d.id !== id);
