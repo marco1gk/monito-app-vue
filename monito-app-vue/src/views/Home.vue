@@ -1,120 +1,244 @@
 <script setup>
+import StorageCharts from "../components/StorageCharts.vue";
 import { ref, computed, watch, onUnmounted } from "vue";
 import { useDevicesStore } from "../stores/devices";
 
 const store = useDevicesStore();
 
-const cpu = ref(null);
-const loading = ref(false);
-const error = ref("");
-const lastUpdate = ref(null); 
-let intervalId = null;
+const sysInfo = ref(null);
+const loadingSys = ref(false);
+const errorSys = ref("");
+const lastUpdateSys = ref(null);
+let intervalSys = null;
 
 const label = computed(() =>
   store.selected ? `${store.selected.id} (${store.selected.ip})` : "No device seleccionado"
 );
 
-async function refresh() {
+async function refreshSys() {
   const dev = store.selected;
   if (!dev) return;
-
-  loading.value = true;
-  error.value = "";
+  loadingSys.value = true;
+  errorSys.value = "";
 
   try {
     const r = await fetch(
-      `http://192.168.10.228:6969/api/snmp/system/descr?ip=${encodeURIComponent(
+      `http://192.168.1.64:6969/api/snmp/system/descr?ip=${encodeURIComponent(
         dev.ip
       )}&community=public`
     );
-
     if (!r.ok) throw new Error("response not ok");
 
     const newData = await r.json();
+    if (!newData || !newData.target) throw new Error("Datos inválidos");
 
-    if (!newData || !newData.target) {
-      throw new Error("Datos inválidos");
-    }
-
-    cpu.value = newData; 
-    lastUpdate.value = new Date(); 
-
+    sysInfo.value = newData;
+    lastUpdateSys.value = new Date();
   } catch (err) {
-    cpu.value = null;
-    lastUpdate.value = null;
-    error.value = "No se pudo obtener info: " + (err.message || "");
+    sysInfo.value = null;
+    lastUpdateSys.value = null;
+    errorSys.value = "No se pudo obtener info: " + (err.message || "");
   } finally {
-    loading.value = false;
+    loadingSys.value = false;
   }
 }
 
+const processes = ref([]);
+const loadingProc = ref(false);
+const errorProc = ref("");
+const lastUpdateProc = ref(null);
+let intervalProc = null;
 
+async function refreshProcesses() {
+  const dev = store.selected;
+  if (!dev) return;
+  loadingProc.value = true;
+  errorProc.value = "";
+
+  try {
+    const r = await fetch(
+      `http://192.168.1.64:6969/api/snmp/hrswrun?ip=${encodeURIComponent(
+        dev.ip
+      )}&community=public`
+    );
+    if (!r.ok) throw new Error("response not ok");
+
+    const newData = await r.json();
+    if (!newData || !newData.data) throw new Error("Datos inválidos");
+
+    processes.value = newData.data;
+    lastUpdateProc.value = new Date();
+  } catch (err) {
+    processes.value = [];
+    lastUpdateProc.value = null;
+    errorProc.value = "No se pudo obtener procesos: " + (err.message || "");
+  } finally {
+    loadingProc.value = false;
+  }
+}
 watch(
   () => store.selected,
   (newDevice) => {
-    clearInterval(intervalId);
+    clearInterval(intervalSys);
+    clearInterval(intervalProc);
+
     if (newDevice) {
-      refresh();
-      intervalId = setInterval(refresh, 1000);
+      refreshSys();
+      refreshProcesses();
+      intervalSys = setInterval(refreshSys, 3000);
+      intervalProc = setInterval(refreshProcesses, 3000);
     } else {
-      cpu.value = null;
-      lastUpdate.value = null;
+      sysInfo.value = null;
+      lastUpdateSys.value = null;
+      processes.value = [];
+      lastUpdateProc.value = null;
     }
   }
 );
 
-onUnmounted(() => clearInterval(intervalId));
+onUnmounted(() => {
+  clearInterval(intervalSys);
+  clearInterval(intervalProc);
+});
 </script>
 
 <template>
-  <div>
-    <h2> 
-        home
-      <span v-if="loading" class="spinner-outer"></span>
-    </h2>
-
-    <p>Dispositivo: <strong>{{ label }}</strong></p>
-    <div v-if="error" style="color:red; margin-top:8px;">{{ error }}</div>
-
-    <div v-if="!store.selected" style="margin-top: 12px; color: #555;">
-      Selecciona un dispositivo para ver información
+  <div class="monitor-container">
+    <div v-if="!store.selected" class="empty-selection">
+      Selecciona un dispositivo para ver la información del sistema, procesos y memoria.
     </div>
+    <div v-else class="card">
+      <h2>
+        Información del Sistema
+        <span v-if="loadingSys" class="spinner-outer"></span>
+      </h2>
+      <p><strong>Dispositivo:</strong> {{ label }}</p>
+      <div v-if="errorSys" class="error">{{ errorSys }}</div>
 
-    <div class="cpu-container" v-if="cpu">
-      <div class="fetch-card">
-        <div><strong>Target:</strong> {{ cpu.target }}</div>
-        <div><strong>OID:</strong> {{ cpu.oid }}</div>
+      <div v-if="sysInfo" class="sys-info">
+        <div><strong>Target:</strong> {{ sysInfo.target }}</div>
+        <div><strong>OID:</strong> {{ sysInfo.oid }}</div>
         <div>
           <strong>Value:</strong>
-          <span :title="cpu.value">
-            {{ cpu.value.length > 80 ? cpu.value.slice(0, 80) + "..." : cpu.value }}
+          <span :title="sysInfo.value">
+            {{ sysInfo.value.length > 80 ? sysInfo.value.slice(0, 80) + "..." : sysInfo.value }}
           </span>
         </div>
-        <div v-if="lastUpdate" class="last-update">
-          Última actualización: {{ lastUpdate.toLocaleTimeString() }}
+        <div v-if="lastUpdateSys" class="last-update">
+          Última actualización: {{ lastUpdateSys.toLocaleTimeString() }}
         </div>
       </div>
     </div>
+    <div v-if="store.selected" class="card process-section">
+      <h2>
+        Procesos SNMP
+        <span v-if="loadingProc" class="spinner-outer"></span>
+      </h2>
+      <div v-if="errorProc" class="error">{{ errorProc }}</div>
+
+      <div v-if="processes.length" class="table-wrapper">
+        <table class="process-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th>Ruta</th>
+              <th>Status</th>
+              <th>CPU Ticks</th>
+              <th>Mem (KB)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in processes" :key="p.index">
+              <td>{{ p.index }}</td>
+              <td>{{ p.name }}</td>
+              <td>{{ p.path || "-" }}</td>
+              <td>{{ p.status }}</td>
+              <td>{{ p.cpuTicks }}</td>
+              <td>{{ p.memKB }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="lastUpdateProc" class="last-update">
+          Última actualización: {{ lastUpdateProc.toLocaleTimeString() }}
+        </div>
+      </div>
+    </div>
+    <StorageCharts :selectedDevice="store.selected" />
   </div>
 </template>
 
 <style scoped>
-.fetch-card {
-  background: #f3f4f6;
-  padding: 12px;
-  border-radius: 8px;
+.monitor-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+}
+
+.sys-info div {
+  margin-bottom: 8px;
+}
+
+.process-section {
+  padding: 16px;
+}
+
+.table-wrapper {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
   margin-top: 12px;
-  font-size: 13px;
-  line-height: 1.4;
-  word-break: break-word;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  min-height: 100px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.process-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.process-table th,
+.process-table td {
+  padding: 10px;
+  text-align: left;
+}
+
+.process-table thead {
+  background: #2563eb;
+  color: white;
+  position: sticky;
+  top: 0;
+}
+
+.process-table tbody tr:nth-child(even) {
+  background: #f3f4f6;
+}
+
+.process-table tbody tr:hover {
+  background: #e0f2fe;
+}
+
+.process-table td {
+  border-bottom: 1px solid #ddd;
+}
+
+.error {
+  color: red;
+  margin-top: 8px;
 }
 
 .spinner-outer {
   display: inline-block;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border: 2px solid #2563eb;
   border-top: 2px solid transparent;
   border-radius: 50%;
@@ -125,8 +249,15 @@ onUnmounted(() => clearInterval(intervalId));
 
 .last-update {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: #555;
+}
+
+.empty-selection {
+  text-align: center;
+  margin-top: 50px;
+  font-size: 14px;
+  color: #6b7280;
 }
 
 @keyframes spin {
