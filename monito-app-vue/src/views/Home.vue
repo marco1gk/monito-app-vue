@@ -2,7 +2,8 @@
 import StorageCharts from "../components/StorageCharts.vue";
 import { ref, computed, watch, onUnmounted } from "vue";
 import { useDevicesStore } from "../stores/devices";
-
+import CpuChart from "../components/CpuChart.vue";
+import SnmpUsers from "../components/SnmpUsers.vue";
 const store = useDevicesStore();
 
 const sysInfo = ref(null);
@@ -23,9 +24,9 @@ async function refreshSys() {
 
   try {
     const r = await fetch(
-      `http://192.168.1.64:6969/api/snmp/system/descr?ip=${encodeURIComponent(
+      `http://192.168.10.228:6969/api/snmp/system/descr?ip=${encodeURIComponent(
         dev.ip
-      )}&community=public`
+      )}&community=seguro`
     );
     if (!r.ok) throw new Error("response not ok");
 
@@ -57,9 +58,9 @@ async function refreshProcesses() {
 
   try {
     const r = await fetch(
-      `http://192.168.1.64:6969/api/snmp/hrswrun?ip=${encodeURIComponent(
+      `http://192.168.10.228:6969/api/snmp/hrswrun?ip=${encodeURIComponent(
         dev.ip
-      )}&community=public`
+      )}&community=seguro`
     );
     if (!r.ok) throw new Error("response not ok");
 
@@ -165,6 +166,9 @@ onUnmounted(() => {
       </div>
     </div>
     <StorageCharts :selectedDevice="store.selected" />
+    <CpuChart :selectedDevice="store.selected" />
+    <SnmpUsers />
+    
   </div>
 </template>
 

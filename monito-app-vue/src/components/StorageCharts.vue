@@ -19,7 +19,7 @@ async function refreshStorage() {
 
   try {
     const r = await fetch(
-      `http://192.168.1.64:6969/api/snmp/hrstorage?ip=${encodeURIComponent(dev.ip)}&community=public`
+      `http://192.168.10.228:6969/api/snmp/hrstorage?ip=${encodeURIComponent(dev.ip)}&community=seguro`
     );
     if (!r.ok) throw new Error("response not ok");
 
