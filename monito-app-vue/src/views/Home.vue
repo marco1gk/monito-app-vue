@@ -24,7 +24,7 @@ async function refreshSys() {
 
   try {
     const r = await fetch(
-      `http://192.168.10.228:6969/api/snmp/system/descr?ip=${encodeURIComponent(
+      `http://192.168.10.44:6969/api/snmp/system/descr?ip=${encodeURIComponent(
         dev.ip
       )}&community=seguro`
     );
@@ -58,7 +58,7 @@ async function refreshProcesses() {
 
   try {
     const r = await fetch(
-      `http://192.168.10.228:6969/api/snmp/hrswrun?ip=${encodeURIComponent(
+      `http://192.168.10.44:6969/api/snmp/hrswrun?ip=${encodeURIComponent(
         dev.ip
       )}&community=seguro`
     );

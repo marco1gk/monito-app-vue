@@ -25,7 +25,7 @@ async function fetchCpu() {
   if (!selectedDevice) return;
   try {
     const res = await fetch(
-      `http://192.168.10.228:6969/api/snmp/cpu?ip=${encodeURIComponent(
+      `http://192.168.10.44:6969/api/snmp/cpu?ip=${encodeURIComponent(
         selectedDevice.ip
       )}&community=seguro`
     );
